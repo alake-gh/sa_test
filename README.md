@@ -32,19 +32,94 @@ latest: digest: sha256:4668d28e0f9cf607afb73a934a7b4198b77a8d341ec5b1fbc89bc4f7d
 
 2. For the previously created image
 a. Share build times
-
-
-
 b. How would you improve build times?
+
+Refer to the comments in Dockerfile.efficient and Dockerfiile.inefficient to see the build times between two different dockerfiles doing the same thing. 
+
+Dockerfile.inefficient
+```
+Building 205.9s (10/10) FINISHED -> Original Build
+Building 203.9s (10/10) FINISHED -> after code changes. Very inefficient because container images and docker work in layers. The code changes being detected early in the container build means that the package and requirements installs after must be run again.
+```
+
+Dockerfile.efficient
+```
+Building 235.4s (10/10) FINISHED   --> Original build 
+Building 0.5s (9/9) FINISHED   -> after code changes the build is almost instant because the main time sinks are already cached and have not changed    
+```
+
+Other things to keep in mind. You can use lighter images to save on build times. Alpine based linux images will produce less bloat than a full debian install. There will be some more overhead work to install all that is needed, but you also keep the image lightweight and secure. Understanding how layers work will also reduce build times, you want to combine layers and make them step-wise easy to understand and work with so certain parts of the build remain in cache effecitively. Using direct tags instead of :latest in the FROM statement should also be done for both security and build speed reasons.
+
 3. Scan the recently created container and evaluate the CVEs that it might contain.
 a. Create a report of your findings and follow best practices to remediate the CVE
 b. What would you do to avoid deploying malicious packages?
+
+```
+# How to run built-in docker scout to search for CVE's. 
+# docker scout quickview
+# INFO New version 0.24.1 available (installed version is 0.20.0)
+#     ✓ Image stored for indexing
+#     ✓ Indexed 854 packages
+
+#   Your image  python_test:latest     │    0C     0H     7M   148L     4?   
+#   Base image  python:3-bullseye      │    0C     0H     7M   139L     4?   
+#   Updated base image  python:alpine  │    0C     0H     0M     0L          
+#                                      │                  -7   -139     -4   
+
+
+# Running the following command will give more info on specific CVE's and links to remedies
+# docker scout cves python_test:latest
+# ex. libxslt 1.1.34-4+deb11u1
+# pkg:deb/debian/libxslt@1.1.34-4+deb11u1?os_distro=bullseye&os_name=debian&os_version=11
+
+#     ✗ LOW CVE-2015-9019
+#       https://scout.docker.com/v/CVE-2015-9019
+#       Affected range : >=1.1.34-4+deb11u1  
+#       Fixed version  : not fixed  
+
+# To avoid deploying dangerous packages, it is important ot run this scan or a similar scan in the CI/CD process.
+# Once caught, the pipeline must be stopped and reporting can be made via a communication medium like slack or email to
+# notify stakeholders and project teams that the application cannot be deployed until the CVE's and Vulnerabilities are remedied.
+```
+
+I've used tools like Sonarcube and docker scout. You want to include these tools as part of your image building process. After an image creation, the scan will check for CVEs. A good practice is to immediately report to Slack/Email or create automated jira tickets on High/Criticals. Remediation is typically going into package managers and updating requirements. For example, if you are working with Node, you might have to uptick a version in the Package.json to remedy a CVE and rerun the build. However, this often comes in a coordinated effort with the dev team as changing versions can break or degrade code operation. High and Critical CVE's should warrant stopping a deployment and notifying stakeholders about the risks involved.
+
 4. Use the created image to create a kubernetes deployment with a command that will
 keep the pod running
+
+Included in the repo is a mock helm deploy written out. Much of this is templated to be controlled by the values.yaml to provide modularity, simplicity, and editability, of a template heavy deployment strategy. I'll go into more detail about various choices and structure decisions being mocked here that should satisfy some of the more advanced requirements.
+
+```
+helm install -f values.yaml sa-test .
+
+kubectl get pods
+NAME                       READY   STATUS    RESTARTS   AGE
+sa-test-6bf8495898-px9j7   1/1     Running   0          50m
+
+
+```
 5. Expose the deployed resource
+
+```
+kubectl get svc sa-test
+NAME      TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+sa-test   ClusterIP   10.108.2.43   <none>        8080/TCP   51m
+
+kubectl get ingress
+NAME      CLASS    HOSTS                 ADDRESS   PORTS   AGE
+sa-test   <none>   chart-example.local             80      51m
+```
+I set up a ClusterIP setup with a simple ingress resource in front of this. Typically in the cloud, ingress would be dependant on the platform being deployed to. For example, AWS ingress controller is used for setting up ELB/ALB resources in AWS that reach out to nodes with exposed services. The keys to take away with exposing resources is to match internal service level traffic, using services or service meshes with external ingress with ingress controllers. 
+
 6. Every step mentioned above have to be in a code repository with automated CI/CD
+
+Refer to the repo and the .github/workflows directory to see a mock up of a github actions simple deployment pipeline. While not true CI or CD because we are not continuiously integrating code without testing here and its not CD because we are not validating anything on deployment to be able to continuiously deploy. This pipeline will keep everyting in the codebase and provide a very simple shell to build the container, run the container scan, and push it to dockerhub. The deploy steps mock a deployment to a release and prod environment. The difference between the two will come to the values.yaml which can be templated to serve the needs and requirements of the projects and environments. 
+
 7. How would you monitor the above deployment? Explain or implement the tools that you
 would use
+
+Observability comes at a layered approach with good alerting and reporting. Some of this comes down to cost and complexity but I'll detail a standard approach. Firstly, let's put something like prometheus on the cluster level. Prometheus is open source and provides metric collection over time with excellent reporting to cluster and container level data. This tool will not only monitor the application deployment but also the management plane and other components that keep the cluster running. Dashboards and data can be created based of the raw data or be sent to a tool like Datadog using an integration to organize and create alerting based on the data. The K8s infra should be monitored for key metrics like; CPU, memory, bandwidth and latency, and disk io. Higher level cluster metrics can be pulled for number of pods in a deployment, node groups, events, etc. Prometheus provides a pretty decent log monitoring solution as well. Pulling application logs from container and management plane pods to aggregate and report. Implementing Prometheus is pretty straightforward, you would apply their supported Helm chart and configure the chart values if you have tuning or special configurations. Past that, if we are on AWS, you would use Cloudwatch or whatever 3rd party (Datadog/New Relic) to pull cloud metrics on the dependencies, ec2s, load balancers, DBs, etc, that surround the application. Creating dashboards and alerting on those based on the requirements of the app.
+
 Project
 Using kubernetes you need to provide all your employees with a way of launching multiple
 development environments (different base images, requirements, credentials, others). The
