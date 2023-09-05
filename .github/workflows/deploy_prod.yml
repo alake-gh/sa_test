@@ -1,0 +1,26 @@
+# .github/workflows/deploy.yml
+name: Deploy
+
+# Deployments should only happen on main 
+on: ['main']
+
+jobs:
+  deployment:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: 'Deploy'
+      uses: 'deliverybot/helm@v1'
+      with:
+        release: 'sa-test'
+        namespace: 'apps'
+        chart: 'app'
+        token: '${{ github.token }}'
+        value-files: >-
+         [
+          "values.yaml",
+         ]
+      env:
+        # for clarity, this kubeconfig would be for production as we are merged to main.
+        KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'

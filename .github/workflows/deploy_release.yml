@@ -1,0 +1,28 @@
+# .github/workflows/deploy.yml
+name: Deploy
+
+# Deployments should only happen on release (stage)
+on: ['release']
+
+jobs:
+  deployment:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: 'Deploy'
+      uses: 'deliverybot/helm@v1'
+      with:
+        release: 'sa-test'
+        namespace: 'apps'
+        chart: 'app'
+        token: '${{ github.token }}'
+        # over here we are going to inject stage specific values. This may allow us to tune settings for stage. We can also template
+        # various values files to tune taints, cpu, memory, requests, instances, etc.
+        value-files: >-
+         [
+          "stage_values.yaml",
+         ]
+      env:
+        # for clarity, this kubeconfig would be for release (stage) as we are merged to release.
+        KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'

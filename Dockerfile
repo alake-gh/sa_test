@@ -5,11 +5,13 @@ FROM python:3.11.5-bullseye
 
 RUN apt update && apt install -y python && apt install r-base -y
 
+RUN pip install -U Flask
+
 WORKDIR /app
 COPY . .
 
-CMD ["sh", "-c", "tail -f /dev/null"]
-EXPOSE 3000
+CMD ["flask", "run", "--host=0.0.0.0"]
+EXPOSE 5000
 
 ## Docker push example
 ## docker tag python_latest:latest alake28/python_test:latest

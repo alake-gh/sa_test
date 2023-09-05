@@ -1,0 +1,63 @@
+## Pseudo-github actions code. Cannot truly test this locally without 'act', and there is a lot of setup involved for that.
+name: Build and Push image to Dockerhub
+
+on:
+    push:
+## Run a build on dev to have the reporting structure for CVE's be consistent. 
+        branches: ["dev"]
+
+env:
+    REGISTRY: docker.io
+    IMAGE_NAME: alake28/python_test
+
+        
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Build the Docker image
+              run: docker-compose build --no-cache --force-rm
+## Ideally we want to fail or at least report if we flag any CVE's high or critical. The automation should not push. 
+            - name: Docker Scout
+              id: docker-scout
+              if: ${{ github.event_name == 'pull_request' }}
+              uses: docker/scout-action@dd36f5b0295baffa006aa6623371f226cc03e506
+              with:
+                command: compare
+                image: ${{ steps.meta.outputs.tags }}
+                to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:edge
+                ignore-unchanged: true
+                only-severities: critical,high
+                token: ${{ secrets.DOCKER_PAT }}
+
+    push_to_registry:
+        name: Push Docker image to Docker Hub
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out the rep0
+              uses: actions/checkout@v3
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v2
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+              with:
+                username: ${{ secrets.DOCKER_USERNAME }}
+                password: ${{ secrets.DOCKER_PASSWORD }}
+
+            - name: Extract metadata (tags, labels) for Docker
+              id: meta
+              uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+              with:
+                images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v2
+              with:
+                context: "{{defaultContext}}"
+                push: true
+                tags: ${{ steps.meta.outputs.tags }}
+                labels: ${{ steps.meta.outputs.labels }}
