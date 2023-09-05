@@ -1,0 +1,47 @@
+# 1. Create an image with python2, python3, R, install a set of requirements and upload it to docker hub.
+# Ahsan Lake
+
+FROM python:3.11.5-bullseye
+
+RUN apt update && apt install -y python && apt install r-base -y
+
+WORKDIR /app
+COPY . .
+
+CMD ["/bin/bash"]
+EXPOSE 3000
+
+# [+] Building 235.4s (10/10) FINISHED   --> OG Build                                                                                                         docker:default
+#  => [internal] load .dockerignore                                                                                                                         0.0s
+#  => => transferring context: 2B                                                                                                                           0.0s
+#  => [internal] load build definition from Dockerfile                                                                                                      0.0s
+#  => => transferring dockerfile: 307B                                                                                                                      0.0s
+#  => [internal] load metadata for docker.io/library/python:3.11.5-bullseye                                                                                 1.0s
+#  => [auth] library/python:pull token for registry-1.docker.io                                                                                             0.0s
+#  => CACHED [1/4] FROM docker.io/library/python:3.11.5-bullseye@sha256:4463d71187d5a84367f8df9ebc29bec6db50ddd70864ee9f184ab63566772ff3                    0.0s
+#  => [internal] load build context                                                                                                                         0.0s
+#  => => transferring context: 375B                                                                                                                         0.0s
+#  => [2/4] RUN apt update && apt install -y python && apt install r-base -y                                                                              230.9s
+#  => [3/4] WORKDIR /app                                                                                                                                    0.0s 
+#  => [4/4] COPY . .                                                                                                                                        0.0s 
+#  => exporting to image                                                                                                                                    3.3s 
+#  => => exporting layers                                                                                                                                   3.3s 
+#  => => writing image sha256:6bcb62ed9f24e7a90c28e6d7aa00908aefa4368991edd40bcaeb97f1d1dc27cc                                                              0.0s 
+#  => => naming to docker.io/library/python_latest
+
+# [+] Building 0.5s (9/9) FINISHED   -> after code changes the build is almost instant because the main time sinks are already cached and have no changed                                                                                                             docker:default
+#  => [internal] load .dockerignore                                                                                                                         0.0s
+#  => => transferring context: 2B                                                                                                                           0.0s
+#  => [internal] load build definition from Dockerfile                                                                                                      0.0s
+#  => => transferring dockerfile: 2.95kB                                                                                                                    0.0s
+#  => [internal] load metadata for docker.io/library/python:3.11.5-bullseye                                                                                 0.3s
+#  => [1/4] FROM docker.io/library/python:3.11.5-bullseye@sha256:4463d71187d5a84367f8df9ebc29bec6db50ddd70864ee9f184ab63566772ff3                           0.0s
+#  => [internal] load build context                                                                                                                         0.0s
+#  => => transferring context: 100B                                                                                                                         0.0s
+#  => CACHED [2/4] RUN apt update && apt install -y python && apt install r-base -y                                                                         0.0s
+#  => CACHED [3/4] WORKDIR /app                                                                                                                             0.0s
+#  => CACHED [4/4] COPY . .                                                                                                                                 0.0s
+#  => exporting to image                                                                                                                                    0.0s
+#  => => exporting layers                                                                                                                                   0.0s
+#  => => writing image sha256:249f10934fbdac26a7f5b84789fc5a4979e9385a4726c8e47d18999ae02b3fe3                                                              0.0s
+#  => => naming to docker.io/library/python_latest  
